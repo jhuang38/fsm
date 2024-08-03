@@ -12,7 +12,7 @@ use std::{
     ffi::OsStr,
     fmt::format,
     fs::{self, File},
-    path::Path,
+    path::{Path, PathBuf},
     str::FromStr,
     time::Duration,
 };
@@ -27,12 +27,11 @@ use crate::{
 Representation of supported file types for filters.
 */
 
-
 #[derive(Serialize, Deserialize, Debug)]
 pub struct FileFilter {
     filename_pattern: Option<String>,
     allowed_filetypes: Option<HashSet<String>>,
-    min_age: Option<Duration>,
+    min_age: Option<Duration>, // todo - add filter here
     max_age: Option<Duration>,
     directory_key: String,
 }
@@ -127,6 +126,7 @@ impl FilterManager {
         &self,
         file_to_move: P,
         filepath_manager: &FilepathManager,
+        overwrite_on_move: bool,
     ) -> Result<(), FsmError>
     where
         P: AsRef<Path>,
@@ -143,42 +143,76 @@ impl FilterManager {
         }
         let matching_filter = match self.filters.iter().find(|f| f.is_match(path_ref)) {
             Some(res) => res,
-            None => return Err(FsmError::new(
-                ErrorType::FilterError,
-                format!(
-                    "The file {} does not match any filters.",
-                    path_ref.to_str().unwrap_or_default()
-                ),
-            ))
+            None => {
+                return Err(FsmError::new(
+                    ErrorType::FilterError,
+                    format!(
+                        "The file {} does not match any filters.",
+                        path_ref.to_str().unwrap_or_default()
+                    ),
+                ))
+            }
         };
 
         let path_mapping = match filepath_manager.get(matching_filter.get_directory_key()) {
             Some(res) => res,
-            None => return Err(FsmError::new(
-                ErrorType::FilterError,
-                format!(
-                    "The file {} does not map to any managed directories.",
-                    path_ref.to_str().unwrap_or_default()
-                ),
-            ))
+            None => {
+                return Err(FsmError::new(
+                    ErrorType::FilterError,
+                    format!(
+                        "The file {} does not map to any managed directories.",
+                        path_ref.to_str().unwrap_or_default()
+                    ),
+                ))
+            }
         };
 
         let file_name = match path_ref.file_name() {
             Some(res) => res,
-            None => return Err(FsmError::new(
-                ErrorType::FilterError,
-                format!("Could not obtain file name."),
-            ))
+            None => {
+                return Err(FsmError::new(
+                    ErrorType::FilterError,
+                    format!("Could not obtain file name."),
+                ))
+            }
         };
 
-        let new_location = path_mapping.join(file_name);
-
-        match fs::rename(path_ref, &new_location) {
-            Ok(_) => {
-                info!("File {path_ref:#?} has been moved to {new_location:#?}");
-                Ok(())
-            },
-            Err(e) => Err(FsmError::new(ErrorType::FilterError, e.to_string())),
+        let mut new_location = path_mapping.join(file_name);
+        if overwrite_on_move || !new_location.exists() {
+            match fs::rename(path_ref, &new_location) {
+                Ok(_) => {
+                    info!("File {path_ref:#?} has been moved to {new_location:#?}");
+                    Ok(())
+                }
+                Err(e) => Err(FsmError::new(ErrorType::FilterError, e.to_string())),
+            }
+        } else {
+            let new_path = {
+                // todo - come up with a better renaming scheme
+                let mut increment_id: u64 = 0;
+                while new_location.exists() {
+                    let mut new_filename = new_location
+                        .file_stem()
+                        .unwrap_or_default()
+                        .to_str()
+                        .unwrap_or_default()
+                        .to_owned();
+                    new_filename.push_str(&("_".to_string() + increment_id.to_string().as_str()));
+                    let file_extension = new_location.extension().unwrap_or_default().to_owned();
+                    new_location.set_file_name(new_filename);
+                    new_location.set_extension(file_extension);
+                    increment_id += 1;
+                }
+                new_location
+            };
+            // todo - potentially reduce some duplication here
+            match fs::rename(path_ref, &new_path) {
+                Ok(_) => {
+                    info!("File {path_ref:#?} has been moved to {new_path:#?}");
+                    Ok(())
+                }
+                Err(e) => Err(FsmError::new(ErrorType::FilterError, e.to_string())),
+            }
         }
     }
 }

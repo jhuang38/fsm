@@ -10,7 +10,6 @@ extern crate serde;
 extern crate serde_derive;
 extern crate serde_json;
 
-
 use serde::{Deserialize, Serialize};
 
 use crate::{error::FsmError, filter::FileFilter};

@@ -10,15 +10,18 @@ Struct to manage the various system properties (e.g. base path, etc.)
 pub struct ConfigManager {
     base_path_to_watch: PathBuf,
     base_path_to_manage: PathBuf,
-    overwrite_on_move: bool
+    overwrite_on_move: bool,
 }
 
 impl ConfigManager {
-    pub fn new() -> Self {
+    pub fn new<P>(base_path_to_watch: P, base_path_to_manage: P, overwrite_on_move: bool) -> Self
+    where
+        P: AsRef<Path>,
+    {
         Self {
-            base_path_to_watch: PathBuf::new(),
-            base_path_to_manage: PathBuf::new(),
-            overwrite_on_move: false
+            base_path_to_watch: base_path_to_watch.as_ref().to_owned(),
+            base_path_to_manage: base_path_to_manage.as_ref().to_owned(),
+            overwrite_on_move,
         }
     }
 
@@ -64,5 +67,8 @@ impl ConfigManager {
 
     pub fn get_manage_path(&self) -> &PathBuf {
         &self.base_path_to_manage
+    }
+    pub fn perform_overwrite_on_move(&self) -> bool {
+        self.overwrite_on_move
     }
 }
