@@ -1,0 +1,15 @@
+[package]
+name = "fsm-backend"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+colored = "2.1.0"
+regex = "1.10.5"
+serde = { version = "1.0.204", features=["derive"]}
+serde_derive = "1.0.204"
+serde_json = "1.0.121"
+notify = "6.1.1"
+notify-debouncer-full = "0.3.1"
+log = "0.4"
+env_logger = "0.11.5"
