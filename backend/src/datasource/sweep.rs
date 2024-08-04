@@ -13,6 +13,7 @@ use std::{
 
 use log::{error, info};
 
+use crate::datasource::DataReceiver;
 use crate::error::{ErrorType, FsmError};
 use crate::filepath::FilepathManager;
 use crate::filter::FilterManager;
@@ -39,7 +40,7 @@ impl FileSweepManager {
         path_to_watch: P,
         filter_manager: Arc<Mutex<FilterManager>>,
         filepath_manager: Arc<Mutex<FilepathManager>>,
-        overwrite_on_move: bool,
+        receivers: Arc<Mutex<Vec<Box<dyn DataReceiver + Send>>>>,
     ) -> Result<(), FsmError>
     where
         P: AsRef<Path> + Send + 'static,
@@ -96,7 +97,7 @@ impl FileSweepManager {
                             filter_manager.place_file_in_mapped_location(
                                 entry.path(),
                                 &filepath_manager,
-                                overwrite_on_move,
+                                receivers.clone(),
                             );
                             successes += 1;
                         }

@@ -14,11 +14,13 @@ use std::{
     fs::{self, File},
     path::{Path, PathBuf},
     str::FromStr,
+    sync::{Arc, Mutex},
     time::Duration,
 };
 
 use crate::{
     config::ConfigManager,
+    datasource::{DataMessage, DataReceiver},
     error::{ErrorType, FsmError},
     filepath::FilepathManager,
 };
@@ -126,7 +128,7 @@ impl FilterManager {
         &self,
         file_to_move: P,
         filepath_manager: &FilepathManager,
-        overwrite_on_move: bool,
+        receivers: Arc<Mutex<Vec<Box<dyn DataReceiver + Send>>>>,
     ) -> Result<(), FsmError>
     where
         P: AsRef<Path>,
@@ -178,41 +180,18 @@ impl FilterManager {
         };
 
         let mut new_location = path_mapping.join(file_name);
-        if overwrite_on_move || !new_location.exists() {
-            match fs::rename(path_ref, &new_location) {
-                Ok(_) => {
-                    info!("File {path_ref:#?} has been moved to {new_location:#?}");
-                    Ok(())
-                }
-                Err(e) => Err(FsmError::new(ErrorType::FilterError, e.to_string())),
-            }
-        } else {
-            let new_path = {
-                // todo - come up with a better renaming scheme
-                let mut increment_id: u64 = 0;
-                while new_location.exists() {
-                    let mut new_filename = new_location
-                        .file_stem()
-                        .unwrap_or_default()
-                        .to_str()
-                        .unwrap_or_default()
-                        .to_owned();
-                    new_filename.push_str(&("_".to_string() + increment_id.to_string().as_str()));
-                    let file_extension = new_location.extension().unwrap_or_default().to_owned();
-                    new_location.set_file_name(new_filename);
-                    new_location.set_extension(file_extension);
-                    increment_id += 1;
-                }
-                new_location
-            };
-            // todo - potentially reduce some duplication here
-            match fs::rename(path_ref, &new_path) {
-                Ok(_) => {
-                    info!("File {path_ref:#?} has been moved to {new_path:#?}");
-                    Ok(())
-                }
-                Err(e) => Err(FsmError::new(ErrorType::FilterError, e.to_string())),
-            }
+        let request_message = DataMessage {
+            from_path: path_ref.to_owned(),
+            to_path: new_location,
+        };
+        let mut receivers = receivers.clone();
+        let mut receivers = match receivers.lock() {
+            Ok(res) => res,
+            Err(e) => return Err(FsmError::new(ErrorType::FilterError, e.to_string())),
+        };
+        for receiver in receivers.iter_mut() {
+            receiver.accept_data(&request_message);
         }
+        Ok(())
     }
 }

@@ -15,6 +15,8 @@ use crate::{
     filter::FilterManager,
 };
 
+use super::DataReceiver;
+
 extern crate notify;
 extern crate notify_debouncer_full;
 
@@ -30,6 +32,7 @@ impl DirectoryWatcher {
         filter_manager: Arc<Mutex<FilterManager>>,
         filepath_manager: Arc<Mutex<FilepathManager>>,
         config_manager: Arc<Mutex<ConfigManager>>,
+        receivers: Arc<Mutex<Vec<Box<dyn DataReceiver + Send>>>>,
     ) -> Result<Self, FsmError> {
         let config_manager_arc = config_manager.clone();
         let config_manager = match config_manager_arc.lock() {
@@ -38,7 +41,6 @@ impl DirectoryWatcher {
         };
 
         let watch_path = config_manager.get_watch_path();
-        let do_overwrite_on_move_duplicate = config_manager.perform_overwrite_on_move();
 
         let mut debouncer = new_debouncer(
             Duration::from_secs(1),
@@ -51,6 +53,7 @@ impl DirectoryWatcher {
 
                         // todo - handling without unwrap
                         let filter_manager = filter_manager.lock().unwrap();
+
                         events.iter().for_each(|event| {
                             let event = &event.event;
                             if event.kind != EventKind::Create(CreateKind::Any) {
@@ -65,7 +68,7 @@ impl DirectoryWatcher {
                                     let res = (*filter_manager).place_file_in_mapped_location(
                                         filepath,
                                         &*mutex_guard,
-                                        do_overwrite_on_move_duplicate,
+                                        receivers.clone(),
                                     );
                                     match res {
                                         Ok(_) => {}

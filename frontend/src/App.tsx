@@ -1,11 +1,16 @@
 import { Menu } from "@mui/icons-material";
-import { AppBar, Box, Drawer, IconButton, List, ListItem, ListItemButton, ListItemText, Typography } from "@mui/material";
+import { AppBar, Box, Drawer, IconButton, List, ListItem, ListItemButton, Typography } from "@mui/material";
 import { useState } from "react";
+const ws = new WebSocket("ws://localhost:5000/fsm/ws");
+  ws.onmessage = (e) => {
+    console.log({e})
+}
 
 
 
 function App() {
   const [drawOpen, setDrawerOpen] = useState(false);
+  
 
   return (
     <Box sx = {{
