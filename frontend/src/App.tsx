@@ -1,11 +1,7 @@
 import { Menu } from "@mui/icons-material";
 import { AppBar, Box, Drawer, IconButton, List, ListItem, ListItemButton, Typography } from "@mui/material";
 import { useState } from "react";
-const ws = new WebSocket("ws://localhost:5000/fsm/ws");
-  ws.onmessage = (e) => {
-    console.log({e})
-}
-
+import {Logs} from "./content/Logs";
 
 
 function App() {
@@ -37,9 +33,9 @@ function App() {
       </AppBar>
       <Box sx = {{
         flexGrow: 1,
-        padding: '1em'
+        padding: '2em'
       }}>
-        <Typography variant="h4">Content</Typography>
+        <Logs/>
       </Box>
       <Drawer open={drawOpen} onClose={() => {
         setDrawerOpen(false);

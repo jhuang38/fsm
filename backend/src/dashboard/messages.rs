@@ -1,7 +1,7 @@
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    datasource::DataReceiver,
+    datasource::{DataReceiver, ReceiverType},
     error::{ErrorType, FsmError},
 };
 
@@ -38,5 +38,8 @@ impl DataReceiver for DashboardMessageManager {
             Ok(_) => Ok(()),
             Err(e) => Err(FsmError::new(ErrorType::ApplicationError, e.to_string())),
         }
+    }
+    fn receiver_type(&self) -> ReceiverType {
+        ReceiverType::DashboardMessages
     }
 }

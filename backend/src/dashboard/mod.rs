@@ -15,7 +15,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::AppState;
 
-pub mod logs;
 pub mod messages;
 
 #[derive(Serialize, Deserialize)]
@@ -50,11 +49,10 @@ async fn handle_socket(mut socket: WebSocket, state: AppState) {
         match messages.try_recv() {
             Ok(message) => {
                 if socket.send(Message::Text(message)).await.is_err() {
-                    return;
+                    continue;
                 }
             }
             Err(_) => {}
         }
-        tokio::time::sleep(Duration::from_secs(5)).await;
     }
 }

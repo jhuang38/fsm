@@ -14,14 +14,14 @@ use serde::{Deserialize, Serialize};
 
 use crate::{error::FsmError, filter::FileFilter};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(untagged)]
 pub enum DirectoryEntry {
     LeafDirectory(String),
     ParentDirectory(HashMap<String, DirectoryEntry>),
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FsmConfigRepresentation {
     pub watch_path: String,
     pub managed_path: String,

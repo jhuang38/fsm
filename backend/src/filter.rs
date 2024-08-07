@@ -29,7 +29,7 @@ use crate::{
 Representation of supported file types for filters.
 */
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FileFilter {
     filename_pattern: Option<String>,
     allowed_filetypes: Option<HashSet<String>>,

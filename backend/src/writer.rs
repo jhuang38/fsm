@@ -1,7 +1,6 @@
 use crate::{
-    datasource::{DataMessage, DataReceiver},
-    error::ErrorType,
-    error::FsmError,
+    datasource::{DataMessage, DataReceiver, ReceiverType},
+    error::{ErrorType, FsmError},
 };
 use log::info;
 use std::fs;
@@ -59,5 +58,8 @@ impl DataReceiver for FileWriter {
                 Err(e) => Err(FsmError::new(ErrorType::FilterError, e.to_string())),
             }
         }
+    }
+    fn receiver_type(&self) -> ReceiverType {
+        ReceiverType::FileWriter
     }
 }

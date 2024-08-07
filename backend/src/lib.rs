@@ -71,12 +71,12 @@ pub fn init_fsm_managers(config_file_path: impl AsRef<Path>) -> Result<AppState,
     let filepath_manager = Arc::new(Mutex::new(filepath_manager));
     let filter_manager = Arc::new(Mutex::new(filter_manager));
 
-    // let _ = sweep_manager.start_sweep(
-    //     config_manager.get_watch_path().clone(),
-    //     filter_manager.clone(),
-    //     filepath_manager.clone(),
-    //     receivers.clone(),
-    // )?;
+    let _ = sweep_manager.start_sweep(
+        config_manager.get_watch_path().clone(),
+        filter_manager.clone(),
+        filepath_manager.clone(),
+        receivers.clone(),
+    )?;
 
     let config_manager = Arc::new(Mutex::new(config_manager));
 
