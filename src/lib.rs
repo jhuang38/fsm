@@ -3,13 +3,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
 
-extern crate tokio;
-use error::ErrorType;
-use tokio::sync::mpsc;
-use tokio::sync::mpsc::Receiver;
-
 use config::ConfigManager;
-use dashboard::messages::DashboardMessageManager;
 use datasource::sweep::FileSweepManager;
 use datasource::watcher::DirectoryWatcher;
 use datasource::DataReceiver;
@@ -17,11 +11,9 @@ use error::FsmError;
 use filepath::FilepathManager;
 use filter::FilterManager;
 use reader::read_fsm_config;
-use tokio::sync::MutexGuard;
 use writer::FileWriter;
 
 pub mod config;
-pub mod dashboard;
 pub mod datasource;
 pub mod error;
 pub mod filepath;
@@ -37,7 +29,6 @@ pub struct AppState {
     pub sweep_manager: Arc<Mutex<FileSweepManager>>,
     pub directory_watcher: Arc<Mutex<DirectoryWatcher>>,
     pub receivers: Arc<Mutex<Vec<Box<dyn DataReceiver + Send>>>>,
-    pub dashboard_messages: Arc<tokio::sync::Mutex<Receiver<String>>>,
 }
 
 pub fn init_fsm_managers(config_file_path: impl AsRef<Path>) -> Result<AppState, FsmError> {
@@ -56,13 +47,11 @@ pub fn init_fsm_managers(config_file_path: impl AsRef<Path>) -> Result<AppState,
 
     let filter_manager = FilterManager::new(fsm_config.filters);
 
-    // attach receivers
-    let (tx, rx) = mpsc::channel(10);
-
-    let receivers: Arc<Mutex<Vec<Box<dyn DataReceiver + Send>>>> = Arc::new(Mutex::new(vec![
-        Box::new(FileWriter::new(config_manager.perform_overwrite_on_move())),
-        Box::new(DashboardMessageManager::new(tx)),
-    ]));
+    // generic method for listening to messages
+    let receivers: Arc<Mutex<Vec<Box<dyn DataReceiver + Send>>>> =
+        Arc::new(Mutex::new(vec![Box::new(FileWriter::new(
+            config_manager.perform_overwrite_on_move(),
+        ))]));
 
     let mut sweep_manager = FileSweepManager::new(Duration::from_secs(fsm_config.sweep_loop_time));
 
@@ -94,6 +83,5 @@ pub fn init_fsm_managers(config_file_path: impl AsRef<Path>) -> Result<AppState,
         sweep_manager: Arc::new(Mutex::new(sweep_manager)),
         directory_watcher: Arc::new(Mutex::new(directory_watcher)),
         receivers,
-        dashboard_messages: Arc::new(tokio::sync::Mutex::new(rx)),
     })
 }

@@ -13,9 +13,9 @@ pub struct DataMessage {
     pub to_path: PathBuf,
 }
 
-pub enum ReceiverType  {
+pub enum ReceiverType {
     FileWriter,
-    DashboardMessages
+    DashboardMessages,
 }
 
 pub trait DataReceiver {

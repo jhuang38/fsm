@@ -116,17 +116,22 @@ impl FileSweepManager {
         let repeat_duration = self.repeat_duration.clone();
         let repeat_duration = match repeat_duration.lock() {
             Err(e) => return Err(FsmError::new(ErrorType::SweepError, e.to_string())),
-            Ok(res) => res
+            Ok(res) => res,
         };
         let repeat_duration = *repeat_duration;
-        
 
         let handle = thread::spawn(move || -> Result<(), FsmError> {
             let mut done = false;
             while !done {
-                let _ = sweep(path_to_watch.as_ref(), filter_manager.clone(), filepath_manager.clone(), receivers.clone());
-                done = rx.try_recv().unwrap_or_default();
                 thread::sleep(repeat_duration);
+                // note this locks the corresponding managers
+                let _ = sweep(
+                    path_to_watch.as_ref(),
+                    filter_manager.clone(),
+                    filepath_manager.clone(),
+                    receivers.clone(),
+                );
+                done = rx.try_recv().unwrap_or_default();
             }
             Ok(())
         });
