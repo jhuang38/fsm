@@ -1,13 +1,11 @@
 use std::{
     collections::{HashMap, VecDeque},
-    error::Error,
     fs,
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 
-use crate::error::ErrorType;
 use crate::error::FsmError;
-use crate::reader::{DirectoryEntry, FsmConfigRepresentation};
+use crate::reader::DirectoryEntry;
 
 #[derive(Debug)]
 pub struct FilepathManager {

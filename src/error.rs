@@ -1,13 +1,10 @@
 use std::env::VarError;
-use std::error::Error;
 use std::fmt::Debug;
 use std::fmt::Display;
-use std::marker::PhantomData;
 use std::process::Termination;
 
 use colored::Color;
 use colored::Colorize;
-use serde_json::de::Read;
 
 #[derive(Debug)]
 pub enum ErrorType {

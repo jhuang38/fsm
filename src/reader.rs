@@ -1,9 +1,8 @@
 use std::{
     collections::HashMap,
-    error::Error,
     fs,
     io::BufReader,
-    path::{Path, PathBuf},
+    path::Path,
 };
 
 extern crate serde;

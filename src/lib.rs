@@ -4,36 +4,35 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 use config::ConfigManager;
-use datasource::sweep::FileSweepManager;
-use datasource::watcher::DirectoryWatcher;
-use datasource::DataReceiver;
+use data::data_receiver::logger::Logger;
+use data::data_receiver::writer::PathWriter;
+use data::data_source::sweep::DirectorySweeper;
+use data::data_source::watch::DirectoryWatcher;
+use data::data_source::DataSource;
+use data::MessageManager;
 use error::FsmError;
 use filepath::FilepathManager;
 use filter::FilterManager;
 use reader::read_fsm_config;
-use writer::FileWriter;
 
 pub mod config;
-pub mod datasource;
+pub mod data;
 pub mod error;
 pub mod filepath;
 pub mod filter;
 pub mod reader;
-pub mod writer;
 
-#[derive(Clone)]
-pub struct AppState {
+pub struct FsmState {
     pub config_manager: Arc<Mutex<ConfigManager>>,
     pub filepath_manager: Arc<Mutex<FilepathManager>>,
     pub filter_manager: Arc<Mutex<FilterManager>>,
-    pub sweep_manager: Arc<Mutex<FileSweepManager>>,
-    pub directory_watcher: Arc<Mutex<DirectoryWatcher>>,
-    pub receivers: Arc<Mutex<Vec<Box<dyn DataReceiver + Send>>>>,
+    pub message_manager: MessageManager,
 }
 
-pub fn init_fsm_managers(config_file_path: impl AsRef<Path>) -> Result<AppState, FsmError> {
+pub fn init_fsm(config_file_path: impl AsRef<Path>) -> Result<FsmState, FsmError> {
     let fsm_config = read_fsm_config(config_file_path)?;
 
+    // init basic managers
     let config_manager = ConfigManager::new(
         fsm_config.watch_path,
         fsm_config.managed_path,
@@ -44,44 +43,43 @@ pub fn init_fsm_managers(config_file_path: impl AsRef<Path>) -> Result<AppState,
         config_manager.get_manage_path(),
         &fsm_config.managed_directory_structure,
     )?;
+    let filepath_manager = Arc::new(Mutex::new(filepath_manager));
 
     let filter_manager = FilterManager::new(fsm_config.filters);
-
-    // generic method for listening to messages
-    let receivers: Arc<Mutex<Vec<Box<dyn DataReceiver + Send>>>> =
-        Arc::new(Mutex::new(vec![Box::new(FileWriter::new(
-            config_manager.perform_overwrite_on_move(),
-        ))]));
-
-    let mut sweep_manager = FileSweepManager::new(Duration::from_secs(fsm_config.sweep_loop_time));
-
-    // create arc mutexes for multithreaded stuff with notify
-
-    let filepath_manager = Arc::new(Mutex::new(filepath_manager));
     let filter_manager = Arc::new(Mutex::new(filter_manager));
 
-    let _ = sweep_manager.start_sweep(
-        config_manager.get_watch_path().clone(),
-        filter_manager.clone(),
+    let mut message_manager = MessageManager::new();
+    // add receivers
+    message_manager.add_receiver(Box::new(Logger::new()));
+
+    let file_writer = PathWriter::new(
+        config_manager.perform_overwrite_on_move(),
         filepath_manager.clone(),
-        receivers.clone(),
-    )?;
+        filter_manager.clone(),
+    );
+    message_manager.add_receiver(Box::new(file_writer));
+
+    // add data sources
+    let mut directory_sweeper = DirectorySweeper::new(Arc::new(Mutex::new(Duration::from_secs(
+        fsm_config.sweep_loop_time,
+    ))));
+    directory_sweeper.set_receivers(message_manager.get_receivers());
+
+    // todo - deal with clone here
+    let _ = directory_sweeper.start_sweep(config_manager.get_watch_path().clone());
 
     let config_manager = Arc::new(Mutex::new(config_manager));
+    message_manager.add_source(Box::new(directory_sweeper));
 
-    let directory_watcher = DirectoryWatcher::new(
-        filter_manager.clone(),
-        filepath_manager.clone(),
-        config_manager.clone(),
-        receivers.clone(),
-    )?;
+    message_manager.add_source(Box::new(
+        DirectoryWatcher::new(config_manager.clone(), message_manager.get_receivers()).unwrap(),
+    ));
 
-    Ok(AppState {
+    // add data receivers
+    Ok(FsmState {
         config_manager,
         filepath_manager,
         filter_manager,
-        sweep_manager: Arc::new(Mutex::new(sweep_manager)),
-        directory_watcher: Arc::new(Mutex::new(directory_watcher)),
-        receivers,
+        message_manager,
     })
 }

@@ -3,24 +3,17 @@ extern crate serde;
 extern crate serde_derive;
 extern crate serde_json;
 
-use log::info;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::{
-    borrow::Borrow,
     collections::HashSet,
     ffi::OsStr,
-    fmt::format,
-    fs::{self, File},
     path::{Path, PathBuf},
-    str::FromStr,
     sync::{Arc, Mutex},
     time::Duration,
 };
 
 use crate::{
-    config::ConfigManager,
-    datasource::{DataMessage, DataReceiver},
     error::{ErrorType, FsmError},
     filepath::FilepathManager,
 };
@@ -124,12 +117,11 @@ impl FilterManager {
     pub fn new(filters: Vec<FileFilter>) -> Self {
         Self { filters }
     }
-    pub fn place_file_in_mapped_location<P>(
+    pub fn get_mapped_location<P>(
         &self,
-        file_to_move: P,
-        filepath_manager: &FilepathManager,
-        receivers: Arc<Mutex<Vec<Box<dyn DataReceiver + Send>>>>,
-    ) -> Result<(), FsmError>
+        file_to_move: &P,
+        filepath_manager: Arc<Mutex<FilepathManager>>,
+    ) -> Result<PathBuf, FsmError>
     where
         P: AsRef<Path>,
     {
@@ -156,6 +148,11 @@ impl FilterManager {
             }
         };
 
+        let filepath_manager = match filepath_manager.lock() {
+            Err(e) => return Err(FsmError::new(ErrorType::FilterError, e.to_string())),
+            Ok(res) => res,
+        };
+
         let path_mapping = match filepath_manager.get(matching_filter.get_directory_key()) {
             Some(res) => res,
             None => {
@@ -178,20 +175,6 @@ impl FilterManager {
                 ))
             }
         };
-
-        let mut new_location = path_mapping.join(file_name);
-        let request_message = DataMessage {
-            from_path: path_ref.to_owned(),
-            to_path: new_location,
-        };
-        let mut receivers = receivers.clone();
-        let mut receivers = match receivers.lock() {
-            Ok(res) => res,
-            Err(e) => return Err(FsmError::new(ErrorType::FilterError, e.to_string())),
-        };
-        for receiver in receivers.iter_mut() {
-            receiver.accept_data(&request_message);
-        }
-        Ok(())
+        Ok(path_mapping.join(file_name))
     }
 }

@@ -1,22 +1,30 @@
-use std::io::Read;
-use std::net::SocketAddr;
-use std::sync::{Arc, Mutex};
-use std::thread;
-use std::time::Duration;
+use std::io::{self};
+
 
 use env_logger;
 
 use fsm::error::FsmError;
-use fsm::{init_fsm_managers, AppState};
+use fsm::init_fsm;
 use log::info;
-
 
 fn main() -> Result<(), FsmError> {
     env_logger::init();
-    let app_state = init_fsm_managers("fsm_config.json")?;
-    info!("Running FSM");
+    let app_state = init_fsm("fsm_config.json")?;
+    info!("Running FSM. Provide stdin to modify app behavior.");
 
-    loop {}
+    loop {
+        let mut buffer = String::new();
+        let _ = match io::stdin().read_line(&mut buffer) {
+            Ok(res) => res,
+            Err(_) => continue,
+        };
+        match buffer.trim().to_lowercase().as_str() {
+            "q" | "quit" => {
+                break;
+            }
+            _ => continue,
+        };
+    }
 
     info!("Exiting");
     Ok(())
