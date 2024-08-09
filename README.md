@@ -5,3 +5,5 @@ This is a project to automatically manage your file system. More documentation i
 - Include documentation on how to configure behavior (i.e. via config file and filters)
 
 I am making this solely for personal use, so the focus of this project will be on actual functionality  over ease of use.
+
+The functionality of this utility is based around a config file. See `fsm_config_example.json` as an example.

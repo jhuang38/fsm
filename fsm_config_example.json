@@ -1,0 +1,45 @@
+{
+    "watch_path": "C:\\Users\\myexampledirectory",
+    "managed_path": "C:\\Users\\myexampledirectory2",
+    "managed_directory_structure": {
+        "school": {
+            "term": {
+                "course": {
+                    "assignment": "assignment_assignment"
+                }
+            }
+        },
+        "important": {
+            "stuff": "stuff"
+        },
+        "resumes": {
+            "self": "self_resumes",
+            "other": "other_resumes"
+        },
+        "misc": {
+            "images_videos": "misc_images_videos",
+            "other": "default"
+        }
+    },
+    "filters": [
+        {
+            "filename_pattern": "MyResumes.*",
+            "allowed_filetypes": ["pdf"],
+            "directory_key": "self_resumes"
+        },
+        {
+            "filename_pattern": ".*(resume|Resume).*",
+            "allowed_filetypes": ["pdf"],
+            "directory_key": "other_resumes"
+        },
+        {
+            "allowed_filetypes": ["png", "jpg", "mov", "mp3", "mp4"],
+            "directory_key": "misc_images_videos"
+        },
+        {
+            "directory_key": "default"
+        }
+    ],
+    "overwrite_on_move": false,
+    "sweep_loop_time": 60
+}
