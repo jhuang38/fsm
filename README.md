@@ -6,4 +6,4 @@ This is a project to automatically manage your file system. More documentation i
 
 I am making this solely for personal use, so the focus of this project will be on actual functionality  over ease of use.
 
-The functionality of this utility is based around a config file. See `fsm_config_example.json` as an example.
+The functionality of this utility is based around a config file. See `fsm_config_example.json` as an example, but the basic functionality involves choosing a path to watch, a path to build a managed directory from, and various filters to organize files based on filename (regex), extension, etc.
