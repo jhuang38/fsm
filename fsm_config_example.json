@@ -41,5 +41,8 @@
         }
     ],
     "overwrite_on_move": false,
-    "sweep_loop_time": 60
+    "sweep_loop_time": {
+        "seconds": 15,
+        "minutes": 1
+    }
 }

@@ -14,6 +14,7 @@ use error::FsmError;
 use filepath::FilepathManager;
 use filter::FilterManager;
 use reader::read_fsm_config;
+use reader::TimeInterval;
 
 pub mod config;
 pub mod data;
@@ -60,9 +61,8 @@ pub fn init_fsm(config_file_path: impl AsRef<Path>) -> Result<FsmState, FsmError
     message_manager.add_receiver(Box::new(file_writer));
 
     // add data sources
-    let mut directory_sweeper = DirectorySweeper::new(Arc::new(Mutex::new(Duration::from_secs(
-        fsm_config.sweep_loop_time,
-    ))));
+    let sweep_loop_time = fsm_config.sweep_loop_time.unwrap_or_default();
+    let mut directory_sweeper = DirectorySweeper::new(Arc::new(Mutex::new(sweep_loop_time.into())));
     directory_sweeper.set_receivers(message_manager.get_receivers());
 
     // todo - deal with clone here

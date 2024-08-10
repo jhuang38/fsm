@@ -1,6 +1,5 @@
 use std::io::{self};
 
-
 use env_logger;
 
 use fsm::error::FsmError;
