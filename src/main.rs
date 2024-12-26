@@ -9,6 +9,8 @@ use log::info;
 fn main() -> Result<(), FsmError> {
     env_logger::init();
     let app_state = init_fsm("fsm_config.json")?;
+
+    // todo - add options for things like turning on/off certain behaviour
     info!("Running FSM. Provide stdin to modify app behavior.");
 
     loop {

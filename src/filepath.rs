@@ -49,3 +49,15 @@ impl FilepathManager {
         &self.directory_mapping
     }
 }
+
+mod test {
+    use super::*;
+    fn test_flat_directories() {
+        todo!()
+    }
+
+    #[test]
+    fn test_nested_directories() {
+        todo!()
+    }
+}

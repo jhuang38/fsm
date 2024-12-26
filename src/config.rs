@@ -14,9 +14,14 @@ pub struct ConfigManager {
 }
 
 impl ConfigManager {
-    pub fn new<P>(base_path_to_watch: P, base_path_to_manage: P, overwrite_on_move: bool) -> Self
+    pub fn new<P1, P2>(
+        base_path_to_watch: P1,
+        base_path_to_manage: P2,
+        overwrite_on_move: bool,
+    ) -> Self
     where
-        P: AsRef<Path>,
+        P1: AsRef<Path>,
+        P2: AsRef<Path>,
     {
         Self {
             base_path_to_watch: base_path_to_watch.as_ref().to_owned(),
@@ -70,5 +75,47 @@ impl ConfigManager {
     }
     pub fn perform_overwrite_on_move(&self) -> bool {
         self.overwrite_on_move
+    }
+}
+
+mod test {
+    use std::str::FromStr;
+
+    use super::*;
+
+    #[test]
+    fn test_init_valid() {
+        std::fs::create_dir("test_config");
+
+        let p1 = PathBuf::from_str("./").unwrap();
+        let p2 = PathBuf::from_str("test_config").unwrap();
+        let cfg_mgr = ConfigManager::new("./", p2.clone(), false);
+
+        assert_eq!(cfg_mgr.get_watch_path(), &p1);
+        assert_eq!(cfg_mgr.get_manage_path(), &p2);
+        assert!(!cfg_mgr.perform_overwrite_on_move());
+
+        std::fs::remove_dir("test_config");
+    }
+
+    fn test_init_invalid() {
+        let p1 = PathBuf::from_str("fdskfjldasj").unwrap();
+        let p2 = PathBuf::from_str("afsdkfjalsdfs").unwrap();
+        let cfg_mgr = ConfigManager::new("fdskfjldasj", p2.clone(), false);
+
+        assert_eq!(cfg_mgr.get_watch_path(), &p1);
+        assert_eq!(cfg_mgr.get_manage_path(), &p2);
+        assert!(!cfg_mgr.perform_overwrite_on_move());
+    }
+
+    // OPTIONAL: Consider adding more here once the setters/getters do more
+    // #[test]
+    fn test_config_manager_getters() {
+        todo!()
+    }
+
+    // #[test]
+    fn test_config_manager_setters() {
+        todo!()
     }
 }
