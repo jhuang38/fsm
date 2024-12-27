@@ -71,3 +71,7 @@ impl MessageManager {
         self.receivers.clone()
     }
 }
+
+mod test {
+    use super::*;
+}

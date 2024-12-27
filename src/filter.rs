@@ -32,10 +32,13 @@ pub struct FileFilter {
 }
 
 impl FileFilter {
-    pub fn is_match(&self, file: &Path) -> bool {
+    pub fn is_match<P>(&self, file: P) -> bool
+    where
+        P: AsRef<Path>,
+    {
         let valid_filename = match &self.filename_pattern {
             Some(pattern) => {
-                let filename = file.file_name().unwrap_or_default();
+                let filename = file.as_ref().file_name().unwrap_or_default();
                 let filename = filename.to_str().unwrap_or_default();
                 let pattern_regex = Regex::new(format!(r#"{}"#, pattern).as_str());
                 match pattern_regex {
@@ -51,7 +54,11 @@ impl FileFilter {
 
         let allowed_filetype = match &self.allowed_filetypes {
             Some(filetypes) => {
-                let extension = file.extension().and_then(OsStr::to_str).unwrap_or_default();
+                let extension = file
+                    .as_ref()
+                    .extension()
+                    .and_then(OsStr::to_str)
+                    .unwrap_or_default();
                 extension.is_empty() || filetypes.contains(extension)
             }
             None => true,
@@ -176,5 +183,148 @@ impl FilterManager {
             }
         };
         Ok(path_mapping.join(file_name))
+    }
+}
+
+mod tests {
+    use std::collections::HashMap;
+    use std::fs;
+    use std::path::Path;
+    use std::str::FromStr;
+
+    use super::*;
+    use crate::reader::DirectoryEntry;
+
+    // TESTS FOR FILTER STRUCT
+    #[test]
+    fn test_filename_match() {
+        let filter = FileFilter {
+            filename_pattern: Some(".abc.".to_string()),
+            allowed_filetypes: None,
+            min_age: None,
+            max_age: None,
+            directory_key: "basic_regexp".to_string(),
+        };
+
+        assert!(filter.is_match("test_filename_match_abc_suffixpadding.txt"));
+        assert!(!filter.is_match("test_filename_match_abb_suffix.rs"));
+    }
+
+    #[test]
+    fn test_filetype_match() {
+        let mut filter = FileFilter {
+            filename_pattern: None,
+            allowed_filetypes: Some(HashSet::from(["txt".to_string()])),
+            min_age: None,
+            max_age: None,
+            directory_key: "test".to_string(),
+        };
+
+        assert!(filter.is_match("test_filename_match_abc_suffixpaddingname.txt"));
+        assert!(!filter.is_match("test_filename_match_abb_suffixname.rs"));
+
+        let filetypes = filter.allowed_filetypes.as_mut().unwrap();
+        filetypes.insert("rs".to_string());
+        assert!(filter.is_match("test_filename_match_abb_suffixname.rs"));
+    }
+
+    #[test]
+    fn test_filename_filetype_match() {
+        let filter = FileFilter {
+            filename_pattern: Some(".abc.".to_string()),
+            allowed_filetypes: Some(HashSet::from(["txt".to_string()])),
+            min_age: None,
+            max_age: None,
+            directory_key: "test".to_string(),
+        };
+
+        assert!(filter.is_match("test_abc_file.txt"));
+        assert!(!filter.is_match("test_abc_file.rs"));
+        assert!(!filter.is_match("test_file.txt"));
+    }
+
+    // TESTS FOR FILTER MANAGER
+    struct TestMapSetup;
+    impl TestMapSetup {
+        fn new() -> Result<Self, std::io::Error> {
+            fs::create_dir("./filter_test_managed")?;
+            fs::create_dir("./filter_test_managed/categorized")?;
+            fs::File::create_new("test_abc.txt")?;
+            fs::File::create_new("test_rs_file.rs")?;
+            fs::File::create_new("no_match_test.txt")?;
+            Ok(Self)
+        }
+    }
+
+    impl Drop for TestMapSetup {
+        fn drop(&mut self) {
+            fs::remove_file("test_abc.txt").unwrap();
+            fs::remove_file("test_rs_file.rs").unwrap();
+            fs::remove_file("no_match_test.txt").unwrap();
+            fs::remove_dir_all("./filter_test_managed").unwrap();
+        }
+    }
+
+    #[test]
+    fn test_map_location() {
+        // Note that it's important to bind this (not set to _) - immediate drop happens otherwise
+        let setup = TestMapSetup::new().unwrap();
+        let filter1 = FileFilter {
+            filename_pattern: Some(".abc.".to_string()),
+            allowed_filetypes: Some(HashSet::from(["txt".to_string()])),
+            min_age: None,
+            max_age: None,
+            directory_key: "dir1key".to_string(),
+        };
+        let filter2 = FileFilter {
+            filename_pattern: None,
+            allowed_filetypes: Some(HashSet::from(["rs".to_string()])),
+            min_age: None,
+            max_age: None,
+            directory_key: "dir2key".to_string(),
+        };
+
+        let filter_mgr = FilterManager::new(Vec::from([filter1, filter2]));
+
+        let dir_structure = DirectoryEntry::ParentDirectory(HashMap::from([(
+            "dir1".to_string(),
+            DirectoryEntry::ParentDirectory(HashMap::from([
+                (
+                    "dir2".to_string(),
+                    DirectoryEntry::LeafDirectory("dir2key".to_string()),
+                ),
+                (
+                    "dir3".to_string(),
+                    DirectoryEntry::ParentDirectory(HashMap::from([(
+                        "dir4".to_string(),
+                        DirectoryEntry::LeafDirectory("dir1key".to_string()),
+                    )])),
+                ),
+            ])),
+        )]));
+
+        let filepath_mgr = FilepathManager::new("./filter_test_managed", &dir_structure).unwrap();
+        let filepath_mgr = Arc::new(Mutex::new(filepath_mgr));
+
+        let f1 = PathBuf::from_str("test_abc.txt").unwrap();
+        let f2 = PathBuf::from_str("test_rs_file.rs").unwrap();
+        let f3 = PathBuf::from_str("no_match_test.txt").unwrap();
+        let nonexistent = PathBuf::from_str("nonexistent.pdf").unwrap();
+
+        let loc1 = filter_mgr.get_mapped_location(&f1, filepath_mgr.clone());
+        assert!(loc1.is_ok());
+        let loc1 = loc1.unwrap();
+        assert!(loc1.to_str().unwrap().contains("dir4"));
+
+        let loc2 = filter_mgr.get_mapped_location(&f2, filepath_mgr.clone());
+        assert!(loc2.is_ok());
+        let loc2 = loc2.unwrap();
+        assert!(loc2.to_str().unwrap().contains("dir2"));
+
+        let loc3 = filter_mgr.get_mapped_location(&f3, filepath_mgr.clone());
+        assert!(loc3.is_err());
+
+        let loc4 = filter_mgr.get_mapped_location(&nonexistent, filepath_mgr.clone());
+        assert!(loc4.is_err());
     }
 }

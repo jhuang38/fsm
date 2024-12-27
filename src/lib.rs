@@ -65,7 +65,6 @@ pub fn init_fsm(config_file_path: impl AsRef<Path>) -> Result<FsmState, FsmError
     let mut directory_sweeper = DirectorySweeper::new(Arc::new(Mutex::new(sweep_loop_time.into())));
     directory_sweeper.set_receivers(message_manager.get_receivers());
 
-    // todo - deal with clone here
     let _ = directory_sweeper.start_sweep(config_manager.get_watch_path().clone());
 
     let config_manager = Arc::new(Mutex::new(config_manager));

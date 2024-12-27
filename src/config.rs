@@ -78,6 +78,7 @@ impl ConfigManager {
     }
 }
 
+#[cfg(test)]
 mod test {
     use std::str::FromStr;
 
@@ -85,7 +86,7 @@ mod test {
 
     #[test]
     fn test_init_valid() {
-        std::fs::create_dir("test_config");
+        std::fs::create_dir("test_config").unwrap();
 
         let p1 = PathBuf::from_str("./").unwrap();
         let p2 = PathBuf::from_str("test_config").unwrap();
@@ -95,9 +96,10 @@ mod test {
         assert_eq!(cfg_mgr.get_manage_path(), &p2);
         assert!(!cfg_mgr.perform_overwrite_on_move());
 
-        std::fs::remove_dir("test_config");
+        std::fs::remove_dir("test_config").unwrap();
     }
 
+    #[test]
     fn test_init_invalid() {
         let p1 = PathBuf::from_str("fdskfjldasj").unwrap();
         let p2 = PathBuf::from_str("afsdkfjalsdfs").unwrap();
