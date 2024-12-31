@@ -74,4 +74,30 @@ impl MessageManager {
 
 mod test {
     use super::*;
+
+    struct MockSource;
+    impl DataSource for MockSource {
+        fn get_receivers(&self) -> Option<Watchers> {
+            todo!()
+
+        }
+        fn notify_receivers(&self, message: Message) {
+            todo!()
+        }
+        fn set_receivers(&mut self, receivers: Watchers) {
+            todo!()
+        }
+    }
+
+    struct MockReceiver;
+    impl DataReceiver for MockReceiver {
+        fn process_message(&self, message: Message) {
+            todo!()
+        }
+    }
+
+    #[test]
+    fn test_message_received() {
+        todo!()
+    }
 }
