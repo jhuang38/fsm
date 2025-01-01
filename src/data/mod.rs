@@ -73,31 +73,73 @@ impl MessageManager {
 }
 
 mod test {
+    use std::{collections::VecDeque, thread::{sleep, Thread}, time::Duration};
+
     use super::*;
 
-    struct MockSource;
+    struct MockSource {
+        receivers: Watchers
+    }
+    impl MockSource {
+        pub fn new() -> Self {
+            Self{
+                receivers: Arc::new(Mutex::new(Vec::new()))
+            }
+        }
+    }
     impl DataSource for MockSource {
         fn get_receivers(&self) -> Option<Watchers> {
-            todo!()
+            Some(self.receivers.clone())
 
         }
-        fn notify_receivers(&self, message: Message) {
-            todo!()
-        }
         fn set_receivers(&mut self, receivers: Watchers) {
-            todo!()
+            self.receivers = receivers.clone();
         }
     }
 
-    struct MockReceiver;
+    struct MockReceiver {
+        id: u8,
+        buffer: Arc<Mutex<Vec<String>>>,
+    }
+    impl MockReceiver {
+        pub fn new(id: u8, buffer: Arc<Mutex<Vec<String>>>) -> Self {
+            Self {
+                id,
+                buffer
+            }
+        }
+
+        pub fn get_id(&self) -> u8 {
+            self.id
+        }
+
+    }
     impl DataReceiver for MockReceiver {
         fn process_message(&self, message: Message) {
-            todo!()
+            let mut buf = self.buffer.lock().unwrap();
+            buf.push(format!("Message received from {}", self.get_id()));
         }
     }
 
     #[test]
     fn test_message_received() {
-        todo!()
+        let mut mock_source = MockSource::new();
+
+        let test_buffer = Arc::new(Mutex::new(Vec::new()));
+        let mock_receiver_1 = MockReceiver::new(1, test_buffer.clone());
+        let mock_receiver_2 = MockReceiver::new(2, test_buffer.clone());
+        let mock_receiver_3 = MockReceiver::new(3, test_buffer.clone());
+
+        let mock_receivers: Arc<Mutex<Vec<Box<dyn DataReceiver + Send + 'static>>>> = Arc::new(Mutex::new(vec![Box::new(mock_receiver_1), Box::new(mock_receiver_2), Box::new(mock_receiver_3)]));
+
+        mock_source.set_receivers(mock_receivers);
+        mock_source.notify_receivers(Message::Log { message: "Test".to_string(), message_type: LogType::Info });
+
+        sleep(Duration::from_secs(1));
+
+        let buffer_data = test_buffer.lock().unwrap();
+        assert!(buffer_data.contains(&"Message received from 1".to_string()));
+        assert!(buffer_data.contains(&"Message received from 2".to_string()));
+        assert!(buffer_data.contains(&"Message received from 3".to_string()));
     }
 }
