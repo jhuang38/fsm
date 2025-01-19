@@ -89,8 +89,25 @@ mod tests {
 
     use super::*;
 
+    struct TestConfig;
+
+    impl TestConfig {
+        pub fn new() -> Self {
+            _ = fs::File::create("reader_unit_test.json").unwrap();
+            Self
+        }
+    }
+
+    impl Drop for TestConfig {
+        fn drop(&mut self) {
+            fs::remove_file("reader_unit_test.json").unwrap();
+        }
+    }
+
     #[test]
     fn test_read_fsm_config() {
+        let cfg = TestConfig::new();
+
         let mut test_repr = FsmConfigRepresentation::new();
         test_repr.watch_path = "test1".to_string();
         test_repr.managed_path = "test2".to_string();
@@ -113,10 +130,14 @@ mod tests {
         test_repr.overwrite_on_move = false;
         test_repr.sweep_loop_time = None;
 
-        let test_file = fs::File::create("reader_unit_test.json").unwrap();
+        let test_file = fs::File::options()
+            .read(true)
+            .write(true)
+            .open("reader_unit_test.json")
+            .unwrap();
         let mut writer = BufWriter::new(test_file);
         serde_json::to_writer(&mut writer, &test_repr).unwrap();
-        writer.flush();
+        _ = writer.flush();
 
         let read_repr = read_fsm_config("reader_unit_test.json").unwrap();
         assert_eq!(test_repr.watch_path, read_repr.watch_path);
@@ -126,7 +147,5 @@ mod tests {
         // assert_eq!(test_repr.filters, read_repr.filters);
         assert_eq!(test_repr.overwrite_on_move, read_repr.overwrite_on_move);
         // assert_eq!(test_repr.sweep_loop_time, read_repr.sweep_loop_time);
-
-        fs::remove_file("reader_unit_test.json").unwrap();
     }
 }
